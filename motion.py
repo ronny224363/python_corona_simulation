@@ -157,3 +157,34 @@ def get_motion_parameters(xmin, ymin, xmax, ymax):
     y_wander = (ymax - ymin) / 2
 
     return x_center, y_center, x_wander, y_wander
+
+def update_speed(population, pop_tracker, Config):
+    '''update speed of population
+
+    Function updates the speed of population considering the lockdown setting versus 
+    current spread of COVID19 and people's health conditions.
+
+    Function
+
+    Keyword arguments
+    -----------------
+    population : ndarray
+        the array containing all the population information
+    '''
+    #For whole population: set randoms speed and direction considering lockdown.
+    if Config.lockdown and \
+        max(0 if len(pop_tracker.infectious) == 0 else np.max(pop_tracker.infectious), len(population[population[:,6] == 1])) >= \
+        len(population) * Config.lockdown_percentage:
+            #reduce speed of all members of society
+            population[:,5] = np.clip(population[:,5], a_min = None, a_max = 0.001)
+            #set speeds of complying people to 0
+            population[:,5][Config.lockdown_vector == 0] = 0
+
+    else:
+        #update randoms
+        population = update_randoms(population, Config.pop_size, Config.speed)
+
+    #For dead ones: set speed and heading to 0
+    population[:,3:5][population[:,6] == 3] = 0
+
+    return population
