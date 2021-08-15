@@ -15,7 +15,7 @@ from path_planning import go_to_location, set_destination, check_at_destination,
 keep_at_destination, reset_destinations, update_pops_destination
 from population import initialize_population, initialize_destination_matrix,\
 set_destination_bounds, save_data, save_population, Population_trackers
-from visualiser import build_fig, draw_tstep, set_style, plot_sir
+from visualiser import FigureSimulation, Draw, FigureSIR
 
 #set seed for reproducibility
 #np.random.seed(100)
@@ -37,8 +37,9 @@ class Simulation():
 
         #initalise destinations vector
         self.destinations = initialize_destination_matrix(self.Config.pop_size, 1)
-
-
+        self.figure_tstep = FigureSimulation(self.Config, figsize = (5,7))
+        self.drawer_tstep = Draw(self.figure_tstep)
+        
     def reinitialise(self):
         '''reset the simulation'''
 
@@ -59,10 +60,6 @@ class Simulation():
         '''
         takes a time step in the simulation
         '''
-
-        if self.frame == 0 and self.Config.visualise:
-            #initialize figure
-            self.fig, self.spec, self.ax1, self.ax2 = build_fig(self.Config)
 
         #update populations' destination conditioning on their current status and the information of destinations.                                                          _xbounds, _ybounds)
         self.population = update_pops_destination(self.population, self.destinations, self.Config)
@@ -114,8 +111,11 @@ class Simulation():
 
         #visualise
         if self.Config.visualise:
-            draw_tstep(self.Config, self.population, self.pop_tracker, self.frame,
-                       self.fig, self.spec, self.ax1, self.ax2)
+            if self.Config.self_isolate and self.Config.isolation_bounds != None:
+                self.drawer_tstep.draw_environmently(population = self.population, pop_tracker = self.pop_tracker, frame = self.frame)
+            else:
+                self.drawer_tstep.draw(population = self.population, pop_tracker = self.pop_tracker, frame = self.frame)
+
 
         #report stuff to console
         sys.stdout.write('\r')
@@ -127,6 +127,9 @@ dead: %i, of total: %i' %(self.frame, self.pop_tracker.susceptible[-1], self.pop
         #save popdata if required
         if self.Config.save_pop and (self.frame % self.Config.save_pop_freq) == 0:
             save_population(self.population, self.frame, self.Config.save_pop_folder)
+        if self.Config.save_plot:
+            self.figure_tstep.save(self.frame)
+            
         #run callback
         self.callback()
 
@@ -184,8 +187,10 @@ dead: %i, of total: %i' %(self.frame, self.pop_tracker.susceptible[-1], self.pop
 
     def plot_sir(self, size=(6,3), include_fatalities=False,
                  title='S-I-R plot of simulation'):
-        plot_sir(self.Config, self.pop_tracker, size, include_fatalities,
-                 title)
+        self.figure_sir = FigureSIR(self.Config, figsize = size)
+        self.drawer_sir = Draw(self.figure_sir)
+        self.drawer_sir.draw(pop_tracker = self.pop_tracker, include_fatalities = include_fatalities)
+
 
 
 
