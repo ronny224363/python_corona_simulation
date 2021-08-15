@@ -9,162 +9,140 @@ import numpy as np
 from environment import build_hospital
 from utils import check_folder
 
-def set_style(Config):
-    '''sets the plot style
-    
-    '''
-    if Config.plot_style.lower() == 'dark':
-        mpl.style.use('plot_styles/dark.mplstyle')
+class Figure:
+    def __init__(self, config, figsize):
+        self.config = config
+        self.palette = self.config.get_palette()
+        self.figsize = figsize
+        self._fig = None
+        self.ax_list = []
+        self.set_style()
 
-
-def build_fig(Config, figsize=(5,7)):
-    set_style(Config)
-    fig = plt.figure(figsize=(5,7))
-    spec = fig.add_gridspec(ncols=1, nrows=2, height_ratios=[5,2])
-
-    ax1 = fig.add_subplot(spec[0,0])
-    plt.title('infection simulation')
-    plt.xlim(Config.xbounds[0], Config.xbounds[1])
-    plt.ylim(Config.ybounds[0], Config.ybounds[1])
-
-    ax2 = fig.add_subplot(spec[1,0])
-    ax2.set_title('number of infected')
-    #ax2.set_xlim(0, simulation_steps)
-    ax2.set_ylim(0, Config.pop_size + 100)
-
-    #if 
-
-    return fig, spec, ax1, ax2
-
-
-def draw_tstep(Config, population, pop_tracker, frame,
-               fig, spec, ax1, ax2):
-    #construct plot and visualise
-
-    #set plot style
-    set_style(Config)
-
-    #get color palettes
-    palette = Config.get_palette()
-
-    spec = fig.add_gridspec(ncols=1, nrows=2, height_ratios=[5,2])
-    ax1.clear()
-    ax2.clear()
-
-    ax1.set_xlim(Config.x_plot[0], Config.x_plot[1])
-    ax1.set_ylim(Config.y_plot[0], Config.y_plot[1])
-
-    if Config.self_isolate and Config.isolation_bounds != None:
-        build_hospital(Config.isolation_bounds[0], Config.isolation_bounds[2],
-                       Config.isolation_bounds[1], Config.isolation_bounds[3], ax1,
-                       addcross = False)
-        
-    #plot population segments
-    healthy = population[population[:,6] == 0][:,1:3]
-    ax1.scatter(healthy[:,0], healthy[:,1], color=palette[0], s = 2, label='healthy')
-    
-    infected = population[population[:,6] == 1][:,1:3]
-    ax1.scatter(infected[:,0], infected[:,1], color=palette[1], s = 2, label='infected')
-
-    immune = population[population[:,6] == 2][:,1:3]
-    ax1.scatter(immune[:,0], immune[:,1], color=palette[2], s = 2, label='immune')
-    
-    fatalities = population[population[:,6] == 3][:,1:3]
-    ax1.scatter(fatalities[:,0], fatalities[:,1], color=palette[3], s = 2, label='dead')
-        
-    
-    #add text descriptors
-    ax1.text(Config.x_plot[0], 
-             Config.y_plot[1] + ((Config.y_plot[1] - Config.y_plot[0]) / 100), 
-             'timestep: %i, total: %i, healthy: %i infected: %i immune: %i fatalities: %i' %(frame,
-                                                                                             len(population),
-                                                                                             len(healthy), 
-                                                                                             len(infected), 
-                                                                                             len(immune), 
-                                                                                             len(fatalities)),
-                fontsize=6)
-    
-    ax2.set_title('number of infected')
-    ax2.text(0, Config.pop_size * 0.05, 
-                'https://github.com/paulvangentcom/python-corona-simulation',
-                fontsize=6, alpha=0.5)
-    #ax2.set_xlim(0, simulation_steps)
-    ax2.set_ylim(0, Config.pop_size + 200)
-
-    if Config.treatment_dependent_risk:
-        infected_arr = np.asarray(pop_tracker.infectious)
-        indices = np.argwhere(infected_arr >= Config.healthcare_capacity)
-
-        ax2.plot([Config.healthcare_capacity for x in range(len(pop_tracker.infectious))], 
-                 'r:', label='healthcare capacity')
-
-    if Config.plot_mode.lower() == 'default':
-        ax2.plot(pop_tracker.infectious, color=palette[1])
-        ax2.plot(pop_tracker.fatalities, color=palette[3], label='fatalities')
-    elif Config.plot_mode.lower() == 'sir':
-        ax2.plot(pop_tracker.susceptible, color=palette[0], label='susceptible')
-        ax2.plot(pop_tracker.infectious, color=palette[1], label='infectious')
-        ax2.plot(pop_tracker.recovered, color=palette[2], label='recovered')
-        ax2.plot(pop_tracker.fatalities, color=palette[3], label='fatalities')
-    else:
-        raise ValueError('incorrect plot_style specified, use \'sir\' or \'default\'')
-
-    ax2.legend(loc = 'best', fontsize = 6)
-    
-    plt.draw()
-    plt.pause(0.0001)
-
-    if Config.save_plot:
+    def set_style(self):
+        '''sets the plot style
+        '''
+        if self.config.plot_style.lower() == 'dark':
+            mpl.style.use('plot_styles/dark.mplstyle')
+    def build_fig(self):
+        pass
+    def init_fig(self):
+        raise NotImplementedError
+    def paint_fig(self, **kargs):
+        raise NotImplementedError
+    def paint_environment(self):
+        raise NotImplementedError
+    def draw(self):
+        self.fig.show()
+    def save(self, name):
         try:
-            plt.savefig('%s/%i.png' %(Config.plot_path, frame))
+            self.fig.savefig('%s/%i.png' %(self.config.plot_path, name))
         except:
-            check_folder(Config.plot_path)
-            plt.savefig('%s/%i.png' %(Config.plot_path, frame))
-       
-            
-def plot_sir(Config, pop_tracker, size=(6,3), include_fatalities=False,
-             title='S-I-R plot of simulation'):
-    '''plots S-I-R parameters in the population tracker
-    
-    Keyword arguments
-    -----------------
-    Config : class
-        the configuration class
-        
-    pop_tracker : ndarray
-        the population tracker, containing
-        
-    size : tuple
-        size at which the plot will be initialised (default: (6,3))
-        
-    include_fatalities : bool
-        whether to plot the fatalities as well (default: False) 
-    '''
-    
-    #set plot style
-    set_style(Config)
+            check_folder(self.config.plot_path)
+            self.fig.savefig('%s/%i.png' %(self.config.plot_path, name))
+    def wait(self, wait_time):
+        plt.pause(wait_time)
 
-    #get color palettes
-    palette = Config.get_palette()
-    
-    #plot the thing
-    plt.figure(figsize=size)
-    plt.title(title)    
-    plt.plot(pop_tracker.susceptible, color=palette[0], label='susceptible')
-    plt.plot(pop_tracker.infectious, color=palette[1], label='infectious')
-    plt.plot(pop_tracker.recovered, color=palette[2], label='recovered')
-    if include_fatalities:
-        plt.plot(pop_tracker.fatalities, color=palette[3], label='fatalities')
+    @property
+    def fig(self):
+        if self._fig == None:
+            self._fig = plt.figure(figsize = self.figsize)
+        return self._fig
+
+class FigureSimulation(Figure):
+    def set_style(self):
+        return super().set_style()
+    def build_fig(self):
+        if len(self.ax_list) == 0:
+            self.spec = self.fig.add_gridspec(ncols=1, nrows=2, height_ratios=[5,2])
+            for i in range(2):
+                self.ax_list.append(self.fig.add_subplot(self.spec[i,0]))
+    def init_fig(self):
+        [ax.clear() for ax in self.ax_list]
+        self.ax_list[0].set_xlim(self.config.x_plot[0], self.config.x_plot[1])
+        self.ax_list[0].set_ylim(self.config.y_plot[0], self.config.y_plot[1])
+    def paint_fig(self, **kargs):
+        population = kargs['population']
+        pop_tracker = kargs['pop_tracker']
+        frame = kargs['frame']
+
+        ax1_text = ["timestep: %i"%frame, "total: %i"%len(population), ]
+        #plot population segments
+        for i,legend in enumerate(['healthy','infected','immune','dead']):
+            extracted_data = population[population[:,6] == i][:, 1:3]
+            self.ax_list[0].scatter(extracted_data[:,0],extracted_data[:,1], color = self.palette[i], s = 2, label = legend)
+            ax1_text.append('%s: %i'%(legend,len(extracted_data)))
+        self.ax_list[0].text(self.config.x_plot[0], 
+                self.config.y_plot[1] + ((self.config.y_plot[1] - self.config.y_plot[0]) / 100), 
+                " ".join(ax1_text),
+                fontsize = 6)
+
+        self.ax_list[1].set_title('number of infected')
+        self.ax_list[1].text(0, self.config.pop_size * 0.05, 
+                    'https://github.com/paulvangentcom/python-corona-simulation',
+                    fontsize=6, alpha=0.5)
+        self.ax_list[1].set_ylim(0, self.config.pop_size + 200)
+
+        if self.config.treatment_dependent_risk:
+            infected_arr = np.asarray(pop_tracker.infectious)
+            indices = np.argwhere(infected_arr >= self.config.healthcare_capacity)
+            self.ax_list[1].plot([self.config.healthcare_capacity for x in range(len(pop_tracker.infectious))], 'r:', label='healthcare capacity')
         
-    #add axis labels
-    plt.xlabel('time in hours')
-    plt.ylabel('population')
-    
-    #add legend
-    plt.legend()
-    
-    #beautify
-    plt.tight_layout()
-    
-    #initialise
-    plt.show()
+        if self.config.plot_mode.lower() == 'default':
+            self.ax_list[1].plot(pop_tracker.infectious, color=self.palette[1])
+            self.ax_list[1].plot(pop_tracker.fatalities, color=self.palette[3], label='fatalities')
+        elif self.config.plot_mode.lower() == 'sir':
+            self.ax_list[1].plot(pop_tracker.susceptible, color=self.palette[0], label='susceptible')
+            self.ax_list[1].plot(pop_tracker.infectious, color=self.palette[1], label='infectious')
+            self.ax_list[1].plot(pop_tracker.recovered, color=self.palette[2], label='recovered')
+            self.ax_list[1].plot(pop_tracker.fatalities, color=self.palette[3], label='fatalities')
+        else:
+            raise ValueError('incorrect plot_style specified, use \'sir\' or \'default\'')
+        self.ax_list[1].legend(loc = 'best', fontsize = 6)
+    def paint_environment(self):
+        if self.config.self_isolate and self.config.isolation_bounds != None:
+            build_hospital(self.config.isolation_bounds[0], self.config.isolation_bounds[2],
+                            self.config.isolation_bounds[1], self.config.isolation_bounds[3], self.ax_list[0],
+                            addcross = False)
+
+        
+
+class FigureSIR(Figure):
+    def build_fig(self):
+        if len(self.ax_list) == 0:
+            self.ax_list.append(self._fig.add_subplot())
+    def init_fig(self):
+        [ax.clear() for ax in self.ax_list]
+    def paint_fig(self, **kwargs):
+        
+        pop_tracker = kwargs['pop_tracker']
+        #plot the thing
+        self.ax_list[0].title('S-I-R plot of simulation')    
+        self.ax_list[0].plot(pop_tracker.susceptible, color=self.palette[0], label='susceptible')
+        self.ax_list[0].plot(pop_tracker.infectious, color=self.palette[1], label='infectious')
+        self.ax_list[0].plot(pop_tracker.recovered, color=self.palette[2], label='recovered')
+        if kwargs['include_fatalities']:
+            self.ax_list[0].plot(pop_tracker.fatalities, color=palette[3], label='fatalities')   
+        #add axis labels
+        self.ax_list[0].xlabel('time in hours')
+        self.ax_list[0].ylabel('population')
+        #add legend
+        self.fig.legend()
+        #beautify
+        self.fig.tight_layout()
+
+class Draw:
+    def __init__(self, figure:Figure):
+        self._figure = figure
+    def draw_environmently(self, population = None, pop_tracker = None, frame = None):
+        self._figure.build_fig()
+        self._figure.init_fig()
+        self._figure.paint_fig(population = population, pop_tracker = pop_tracker, frame = frame)
+        self._figure.paint_environment()
+        self._figure.draw()
+
+        self.save_fig(frame)
+    def draw(self,population = None, pop_tracker = None, frame = None):
+        self._figure.build_fig()
+        self._figure.init_fig()
+        self._figure.paint_fig(population = population, pop_tracker = pop_tracker, frame = frame)
+        self._figure.draw()
