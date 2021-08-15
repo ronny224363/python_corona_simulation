@@ -121,7 +121,7 @@ class FigureSIR(Figure):
         self.ax_list[0].plot(pop_tracker.infectious, color=self.palette[1], label='infectious')
         self.ax_list[0].plot(pop_tracker.recovered, color=self.palette[2], label='recovered')
         if kwargs['include_fatalities']:
-            self.ax_list[0].plot(pop_tracker.fatalities, color=palette[3], label='fatalities')   
+            self.ax_list[0].plot(pop_tracker.fatalities, color=self.palette[3], label='fatalities')   
         #add axis labels
         self.ax_list[0].xlabel('time in hours')
         self.ax_list[0].ylabel('population')
