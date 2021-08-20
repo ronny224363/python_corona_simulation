@@ -120,7 +120,7 @@ def infect(population, Config, frame, send_to_location=False,
             for idx in indices:
                 #roll die to see if healthy person will be infected
                 if np.random.random() < Config.infection_chance:
-                    population[idx][6] = 1
+                    population[idx][6] = update_healthy_state(population[idx][6], 1)
                     population[idx][8] = frame
                     if len(population[population[:,10] == 1]) <= Config.healthcare_capacity:
                         population[idx][10] = 1
@@ -185,7 +185,40 @@ def infect(population, Config, frame, send_to_location=False,
     else:
         return population, destinations
 
+def update_healthy_state(individual, new_state):
+    STATE_DICT = {'healthy':0, 'sick':1, 'immune':2, 'dead':3, 'immune but infectious':4}
 
+    assert new_state in STATE_DICT.keys()
+
+    if type(individual, int):
+        current_state_val = individual
+    else:
+        current_state_val = individual[6]
+    new_state_val = current_state_val
+
+    if current_state_val == 0: # Healthy
+        if new_state == 'sick'： # get Sick
+            new_state_val = STATE_DICT.get('sick')
+        else:
+            pass
+    elif current_state_val == 1: # Sick
+        if new_state == 'healthy':
+            new_state_val = STATE_DICT.get('healthy')
+        elif new_state == 'immune':
+            new_state_val = STATE_DICT.get('immune')
+        elif new_state == 'dead':
+            new_state_val = STATE_DICT.get('dead')
+        else:
+            pass
+    elif current_state_val == 2:
+        new_state_val = updateStatus(0, new_state)     
+    elif current_state_val == 3:
+        pass
+    elif current_state_val == 4:
+        new_state_val = updateStatus(0, new_state)
+
+    return new_state_val
+  
 def recover_or_die(population, frame, Config):
     '''see whether to recover or die
     Keyword arguments
