@@ -11,21 +11,16 @@ from path_planning import go_to_location
 def find_nearby(population, infection_zone, traveling_infects=False,
                 kind='healthy', infected_previous_step=[]):
     '''finds nearby IDs
-
     Keyword Arguments
     -----------------
-
     kind : str (can be 'healthy' or 'infected')
         determines whether infected or healthy individuals are returned
         within the infection_zone
-
-
     Returns
     -------
     if kind='healthy', indices of healthy agents within the infection
     zone is returned. This is because for each healthy agent, the chance to
     become infected needs to be tested
-
     if kind='infected', only the number of infected within the infection zone is
     returned. This is because in this situation, the odds of the healthy agent at
     the center of the infection zone depend on how many infectious agents are around
@@ -67,52 +62,38 @@ def infect(population, Config, frame, send_to_location=False,
            location_bounds=[], destinations=[], location_no=1,
            location_odds=1.0):
     '''finds new infections.
-
     Function that finds new infections in an area around infected persens
     defined by infection_range, and infects others with chance infection_chance
-
     Keyword arguments
     -----------------
     population : ndarray
         array containing all data on the population
-
     pop_size : int
         the number if individuals in the population
-
     infection_range : float
         the radius around each infected person where transmission of virus can take place
-
     infection_chance : float
         the odds that the virus infects someone within range (range 0 to 1)
-
     frame : int
         the current timestep of the simulation
-
     healthcare_capacity : int
         the number of places available in the healthcare system
-
     verbose : bool
         whether to report illness events
-
     send_to_location : bool
         whether to give infected people a destination
-
     location_bounds : list
         the location bounds where the infected person is sent to and can roam
         within (xmin, ymin, xmax, ymax)
-
     destinations : list or ndarray
         the destinations vector containing destinations for each individual in the population.
         Needs to be of same length as population
-
     location_no : int
         the location number, used as index for destinations array if multiple possible
         destinations are defined
-
     location_odds: float
         the odds that someone goes to a location or not. Can be used to simulate non-compliance
         to for example self-isolation.
-
     traveling_infects : bool
         whether infected people heading to a destination can still infect others on the way there
     '''
@@ -139,7 +120,7 @@ def infect(population, Config, frame, send_to_location=False,
             for idx in indices:
                 #roll die to see if healthy person will be infected
                 if np.random.random() < Config.infection_chance:
-                    population[idx][6] = update_healthy_state(population[idx][6], 1)
+                    population[idx][6] = 1
                     population[idx][8] = frame
                     if len(population[population[:,10] == 1]) <= Config.healthcare_capacity:
                         population[idx][10] = 1
@@ -205,84 +186,36 @@ def infect(population, Config, frame, send_to_location=False,
         return population, destinations
 
 
-      
-def update_healthy_state(individual, new_state):
-    STATE_DICT = {'healthy':0, 'sick':1, 'immune':2, 'dead':3, 'immune but infectious':4}
-
-    assert new_state in STATE_DICT.keys()
-
-    if type(individual, int):
-        current_state_val = individual
-    else:
-        current_state_val = individual[6]
-    new_state_val = current_state_val
-
-    if current_state_val == 0: # Healthy
-        if new_state == 'sick'： # get Sick
-            new_state_val = STATE_DICT.get('sick')
-        else:
-            pass
-    elif current_state_val == 1: # Sick
-        if new_state == 'healthy':
-            new_state_val = STATE_DICT.get('healthy')
-        elif new_state == 'immune':
-            new_state_val = STATE_DICT.get('immune')
-        elif new_state == 'dead':
-            new_state_val = STATE_DICT.get('dead')
-        else:
-            pass
-    elif current_state_val == 2:
-        new_state_val = updateStatus(0, new_state)     
-    elif current_state_val == 3:
-        pass
-    elif current_state_val == 4:
-        new_state_val = updateStatus(0, new_state)
-
-    return new_state_val
-      
 def recover_or_die(population, frame, Config):
     '''see whether to recover or die
-
-
     Keyword arguments
     -----------------
     population : ndarray
         array containing all data on the population
-
     frame : int
         the current timestep of the simulation
-
     recovery_duration : tuple
         lower and upper bounds of duration of recovery, in simulation steps
-
     mortality_chance : float
         the odds that someone dies in stead of recovers (between 0 and 1)
-
     risk_age : int or flaot
         the age from which mortality risk starts increasing
-
     critical_age: int or float
         the age where mortality risk equals critical_mortality_change
-
     critical_mortality_chance : float
         the heightened odds that an infected person has a fatal ending
-
     risk_increase : string
         can be 'quadratic' or 'linear', determines whether the mortality risk
         between the at risk age and the critical age increases linearly or
         exponentially
-
     no_treatment_factor : int or float
         defines a change in mortality odds if someone cannot get treatment. Can
         be larger than one to increase risk, or lower to decrease it.
-
     treatment_dependent_risk : bool
         whether availability of treatment influences patient risk
-
     treatment_factor : int or float
         defines a change in mortality odds if someone is in treatment. Can
         be larger than one to increase risk, or lower to decrease it.
-
     verbose : bool
         whether to report to terminal the recoveries and deaths for each simulation step
     '''
@@ -349,32 +282,24 @@ def compute_mortality(age, mortality_chance, risk_age=50,
                       risk_increase='linear'):
 
     '''compute mortality based on age
-
     The risk is computed based on the age, with the risk_age marking
     the age where risk starts increasing, and the crticial age marks where
     the 'critical_mortality_odds' become the new mortality chance.
-
     Whether risk increases linearly or quadratic is settable.
-
     Keyword arguments
     -----------------
     age : int
         the age of the person
-
     mortality_chance : float
         the base mortality chance
         can be very small but cannot be zero if increase is quadratic.
-
     risk_age : int
         the age from which risk starts increasing
-
     critical_age : int
         the age where mortality risk equals the specified
         critical_mortality_odds
-
     critical_mortality_chance : float
         the odds of dying at the critical age
-
     risk_increase : str
         defines whether the mortality risk between the at risk age
         and the critical age increases linearly or exponentially
@@ -408,16 +333,13 @@ def compute_mortality(age, mortality_chance, risk_age=50,
 
 def healthcare_infection_correction(worker_population, healthcare_risk_factor=0.2):
     '''corrects infection to healthcare population.
-
     Takes the healthcare risk factor and adjusts the sick healthcare workers
     by reducing (if < 0) ir increasing (if > 0) sick healthcare workers
-
     Keyword arguments
     -----------------
     worker_population : ndarray
         the array containing all variables related to the healthcare population.
         Is a subset of the 'population' matrix.
-
     healthcare_risk_factor : int or float
         if other than one, defines the change in odds of contracting an infection.
         Can be used to simulate healthcare personell having extra protections in place (< 1)
