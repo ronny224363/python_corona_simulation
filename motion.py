@@ -73,7 +73,7 @@ class updatePositionHandler(Handler):
 
 
 
-class motionHandler(Handler):
+class motionClient:
     def __init__(self):
         self._destinationHandler = updateDestinationHandler()
         self._directionHandler = updateDirectionHandler()
