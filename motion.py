@@ -5,6 +5,84 @@ and related computations
 
 import numpy as np
 
+class Handler:
+
+    _next_handler = None
+
+    def set_next_handler(self):
+        self._next_handler = handler
+        return self._next_handler
+        
+
+    def update(self, simulation):
+        raise NotImplementedError
+
+class updateDestinationHandler(Handler):
+    def update(self, simulation):
+        active_dests = len(self.population[self.population[:,11] != 0])
+        if active_dests > 0:
+            if len(self.population[self.population[:,12] == 0]) > 0:
+                simulation.population = set_destination(simulation.population, simulation.destinations)
+                simulation.population = check_at_destination(simulation.population, simulation.destinations,
+                                                       wander_factor = simulation.Config.wander_factor_dest,
+                                                       speed = simulation.Config.speed)
+
+            if len(simulation.population[simulation.population[:,12] == 1]) > 0:
+                #keep them at destination
+                simulation.population = keep_at_destination(simulation.population, simulation.destinations,
+                                                      simulation.Config.wander_factor)
+        return simulation
+
+class updateDirectionHandler(Handler):
+    def update(self, simulation):
+        if len(simulation.population[:,11] == 0) > 0:
+            _xbounds = np.array([[simulation.Config.xbounds[0] + 0.02, simulation.Config.xbounds[1] - 0.02]] * len(simulation.population[simulation.population[:,11] == 0]))
+            _ybounds = np.array([[simulation.Config.ybounds[0] + 0.02, simulation.Config.ybounds[1] - 0.02]] * len(simulation.population[simulation.population[:,11] == 0]))
+            simulation.population[simulation.population[:,11] == 0] = out_of_bounds(simulation.population[simulation.population[:,11] == 0],
+                                                                        _xbounds, _ybounds)
+        return simulation
+
+class updateSpeedHandler(Handler):
+    def update(self, simulation):
+        if simulation.Config.lockdown:
+            if len(simulation.pop_tracker.infectious) == 0:
+                mx = 0
+            else:
+                mx = np.max(simulation.pop_tracker.infectious)
+
+            if len(simulation.population[simulation.population[:,6] == 1]) >= len(simulation.population) * simulation.Config.lockdown_percentage or\
+               mx >= (len(simulation.population) * simulation.Config.lockdown_percentage):
+                #reduce speed of all members of society
+                simulation.population[:,5] = np.clip(simulation.population[:,5], a_min = None, a_max = 0.001)
+                #set speeds of complying people to 0
+                simulation.population[:,5][simulation.Config.lockdown_vector == 0] = 0
+            else:
+                #update randoms
+                simulation.population = update_randoms(simulation.population, simulation.Config.pop_size, simulation.Config.speed)
+        else:
+            #update randoms
+            simulation.population = update_randoms(simulation.population, simulation.Config.pop_size, simulation.Config.speed)
+        simulation.population[:,3:5][simulation.population[:,6] == 3] = 0
+        return simulation
+
+class updatePositionHandler(Handler):
+    def update(self, simulation):
+        simulation.population = update_positions(simulation.population)
+
+
+
+class motionClient:
+    def __init__(self):
+        self._destinationHandler = updateDestinationHandler()
+        self._directionHandler = updateDirectionHandler()
+        self._speedHandler = updateSpeedHandler()
+        self._positionHandler = updatePositionHandler()
+
+        self._handler = self._destinationHandler.set_next_handler(self._directionHandler).set_next_handler(self._speedHandler).set_next_handler(self._positionHandler)
+
+    def update(self, simulation):
+        return self._handler(simulation)
+
 def update_positions(population):
     '''update positions of all people
 
