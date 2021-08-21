@@ -5,6 +5,85 @@ and related computations
 
 import numpy as np
 
+class Handler:
+
+    _next_handler = None
+
+    def set_next_handler(self):
+        self._next_handler = handler
+        return self._next_handler
+        
+
+    def update(self, population, destination, config):
+        raise NotImplementedError
+
+class updateDestinationHandler(Handler):
+    def update(self, population, destination, config):
+        active_dests = len(population[population[:,11] != 0])
+        if active_dests > 0:
+            if len(self.population[self.population[:,12] == 0]) > 0:
+                population = set_destination(population, destinations)
+                population = check_at_destination(population, destinations,
+                                                       wander_factor = Config.wander_factor_dest,
+                                                       speed = Config.speed)
+
+            if len(population[population[:,12] == 1]) > 0:
+                #keep them at destination
+                population = keep_at_destination(population, destinations,
+                                                      Config.wander_factor)
+        return population
+
+class updateDirectionHandler(Handler):
+    def update(self, population, destination, config):
+        if len(population[:,11] == 0) > 0:
+            _xbounds = np.array([[Config.xbounds[0] + 0.02, Config.xbounds[1] - 0.02]] * len(population[population[:,11] == 0]))
+            _ybounds = np.array([[Config.ybounds[0] + 0.02, Config.ybounds[1] - 0.02]] * len(population[population[:,11] == 0]))
+            population[population[:,11] == 0] = out_of_bounds(population[population[:,11] == 0],
+                                                                        _xbounds, _ybounds)
+        return population
+
+class updateSpeedHandler(Handler):
+    def update(self, population, destination, config):
+        if Config.lockdown:
+            if len(pop_tracker.infectious) == 0:
+                mx = 0
+            else:
+                mx = np.max(pop_tracker.infectious)
+
+            if len(population[population[:,6] == 1]) >= len(population) * Config.lockdown_percentage or\
+               mx >= (len(population) * Config.lockdown_percentage):
+                #reduce speed of all members of society
+                population[:,5] = np.clip(population[:,5], a_min = None, a_max = 0.001)
+                #set speeds of complying people to 0
+                population[:,5][Config.lockdown_vector == 0] = 0
+            else:
+                #update randoms
+                population = update_randoms(population, Config.pop_size, Config.speed)
+        else:
+            #update randoms
+            population = update_randoms(population, Config.pop_size, Config.speed)
+        population[:,3:5][population[:,6] == 3] = 0
+        return population
+
+class updatePositionHandler(Handler):
+    def update(self, population, destination, config):
+        population = update_positions(population)
+        return population
+
+
+
+class motionApplication(Handler):
+    def __init__(self):
+        self._destinationHandler = updateDestinationHandler()
+        self._directionHandler = updateDirectionHandler()
+        self._speedHandler = updateSpeedHandler()
+        self._positionHandler = updatePositionHandler()
+
+        self._handler = self._destinationHandler.set_next_handler(self._directionHandler).set_next_handler(self._speedHandler).set_next_handler(self._positionHandler)
+
+    def update(self, population, destination, config):
+        return self._handler(population, destination, config)
+    
 def update_positions(population):
     '''update positions of all people
 
