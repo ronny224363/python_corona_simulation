@@ -10,7 +10,7 @@ from environment import build_hospital
 from infection import find_nearby, infect, recover_or_die, compute_mortality,\
 healthcare_infection_correction
 from motion import update_positions, out_of_bounds, update_randoms,\
-get_motion_parameters
+get_motion_parameters, update_speed
 from path_planning import go_to_location, set_destination, check_at_destination,\
 keep_at_destination, reset_destinations, update_pops_destination
 from population import initialize_population, initialize_destination_matrix,\
@@ -67,28 +67,8 @@ class Simulation():
         #update populations' destination conditioning on their current status and the information of destinations.                                                          _xbounds, _ybounds)
         self.population = update_pops_destination(self.population, self.destinations, self.Config)
 
-        #set randoms
-        if self.Config.lockdown:
-            if len(self.pop_tracker.infectious) == 0:
-                mx = 0
-            else:
-                mx = np.max(self.pop_tracker.infectious)
-
-            if len(self.population[self.population[:,6] == 1]) >= len(self.population) * self.Config.lockdown_percentage or\
-               mx >= (len(self.population) * self.Config.lockdown_percentage):
-                #reduce speed of all members of society
-                self.population[:,5] = np.clip(self.population[:,5], a_min = None, a_max = 0.001)
-                #set speeds of complying people to 0
-                self.population[:,5][self.Config.lockdown_vector == 0] = 0
-            else:
-                #update randoms
-                self.population = update_randoms(self.population, self.Config.pop_size, self.Config.speed)
-        else:
-            #update randoms
-            self.population = update_randoms(self.population, self.Config.pop_size, self.Config.speed)
-
-        #for dead ones: set speed and heading to 0
-        self.population[:,3:5][self.population[:,6] == 3] = 0
+        # update populations' speed in terms of the lockdown setting, status of the spread of COVID-19, and health conditions of individuals.
+        self.population = update_speed(self.population, self.pop_tracker, self.Config)
 
         #update positions
         self.population = update_positions(self.population)
